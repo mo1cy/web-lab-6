@@ -1,0 +1,316 @@
+openapi: 3.0.3
+
+info:
+  title: Сервіс скорочення посилань
+  version: 1.0.0
+  description: |
+    Створює короткі посилання, перенаправляє за ними і рахує переходи.
+    Для кожного довгого посилання створюється новий короткий код,
+    навіть якщо така адреса вже скорочувалась раніше.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Локальний запуск через docker compose
+
+security: []
+
+
+tags:
+  - name: Links
+    description: Керування короткими посиланнями
+  - name: Redirect
+    description: Перехід за коротким посиланням
+  - name: System
+    description: Службові операції
+
+paths:
+  /api/links:
+    post:
+      tags: [Links]
+      operationId: createLink
+      summary: Створити коротке посилання
+      description: |
+        Код генерує сервіс. Якщо передано `alias`, він стає кодом.
+        Зарезервовані слова `api`, `docs`, `health` використовувати не можна.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+            example:
+              url: https://example.com/very/long/page
+              alias: my-page
+      responses:
+        '201':
+          description: Посилання створено
+          headers:
+            Location:
+              description: Адреса створеного посилання в API
+              schema:
+                type: string
+                example: /api/links/my-page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Links]
+      operationId: listLinks
+      summary: Отримати перелік усіх посилань
+      responses:
+        '200':
+          description: Масив посилань (від нових до старих)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Link'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/links/{code}:
+    parameters:
+      - $ref: '#/components/parameters/Code'
+    get:
+      tags: [Links]
+      operationId: getLink
+      summary: Отримати інформацію про одне посилання
+      description: Лічильник переходів не збільшується.
+      responses:
+        '200':
+          description: Інформація про посилання
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Links]
+      operationId: updateLink
+      summary: Змінити оригінальну адресу
+      description: Код, дата створення і лічильник переходів не змінюються.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLinkRequest'
+            example:
+              url: https://example.org/new/address
+      responses:
+        '200':
+          description: Адресу змінено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Links]
+      operationId: deleteLink
+      summary: Видалити посилання
+      responses:
+        '204':
+          description: Посилання видалено
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{code}:
+    parameters:
+      - $ref: '#/components/parameters/Code'
+    get:
+      tags: [Redirect]
+      operationId: followLink
+      summary: Перейти за коротким посиланням
+      description: |
+        Перенаправляє на оригінальну адресу і збільшує лічильник переходів на 1.
+        Використано код 302, щоб браузер не кешував перенаправлення назавжди:
+        інакше переходи не доходили б до сервера і не рахувались би.
+      responses:
+        '302':
+          description: Перенаправлення на оригінальну адресу
+          headers:
+            Location:
+              description: Оригінальна адреса
+              schema:
+                type: string
+                example: https://example.com/very/long/page
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Перевірити стан сервера і бази даних
+      responses:
+        '200':
+          description: Сервер і база працюють
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                database: up
+        '503':
+          description: База даних недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: error
+                database: down
+
+components:
+  parameters:
+    Code:
+      name: code
+      in: path
+      required: true
+      description: Короткий код посилання
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{3,32}$'
+      example: aB3xK9
+
+  schemas:
+    CreateLinkRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: Довга адреса. Лише абсолютна, зі схемою http або https.
+          example: https://example.com/very/long/page
+        alias:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{3,32}$'
+          description: Власний короткий код (необов'язково).
+          example: my-page
+
+    UpdateLinkRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: Нова довга адреса (http або https).
+          example: https://example.org/new/address
+
+    Link:
+      type: object
+      required: [code, shortUrl, originalUrl, createdAt, clicks]
+      properties:
+        code:
+          type: string
+          example: aB3xK9
+        shortUrl:
+          type: string
+          example: http://localhost:8080/aB3xK9
+        originalUrl:
+          type: string
+          example: https://example.com/very/long/page
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-24T16:40:00.000Z'
+        clicks:
+          type: integer
+          minimum: 0
+          example: 0
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Машинний код помилки
+          enum:
+            - INVALID_BODY
+            - INVALID_URL
+            - INVALID_ALIAS
+            - ALIAS_TAKEN
+            - NOT_FOUND
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Пояснення для людини
+
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [up, down]
+
+  responses:
+    BadRequest:
+      description: |
+        Некоректний запит: тіло не є JSON, `url` не є адресою http/https,
+        або `alias` не відповідає формату.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: INVALID_URL
+            message: Адреса має починатися з http:// або https://
+    Conflict:
+      description: Запропонований alias уже зайнятий або зарезервований
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: ALIAS_TAKEN
+            message: Такий alias уже зайнятий
+    NotFound:
+      description: Посилання з таким кодом не існує
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: NOT_FOUND
+            message: Посилання не знайдено
+    InternalError:
+      description: Внутрішня помилка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: INTERNAL_ERROR
+            message: Внутрішня помилка сервера
