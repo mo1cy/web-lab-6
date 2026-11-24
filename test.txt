@@ -59,7 +59,14 @@ curl -X 'PATCH' \
   -H 'Content-Type: application/json' \
   -d '{"url":"url":"https://example.net"}'
 
-10. GET /{code}: перехід за коротким посиланням (302 і Location)
+10. PATCH /api/links/{code}: коду не існує (404)
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/nonexistent' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.net"}'
+
+11. GET /{code}: перехід за коротким посиланням (302 і Location)
 Swagger UI виконує запити через fetch у браузері, який сам іде за редіректом і
 впирається в CORS ("Failed to fetch"). Тому код 302 перевірено командою curl
 з прапорцем -i (команда згенерована Swagger UI, додано лише -i).
@@ -67,25 +74,25 @@ curl -i -X 'GET' \
   'http://localhost:8080/lab6' \
   -H 'accept: */*'
 
-11. GET /{code}: коду не існує (404)
+12. GET /{code}: коду не існує (404)
 curl -X 'GET' \
   'http://localhost:8080/dlkdkfks' \
   -H 'accept: */*'
 
-12. DELETE /api/links/{code}: видалення (204)
+13. DELETE /api/links/{code}: видалення (204)
 curl -X 'DELETE' \
   'http://localhost:8080/api/links/lab6' \
   -H 'accept: */*'
 
-13. DELETE /api/links/{code}: повторне видалення (404)
+14. DELETE /api/links/{code}: повторне видалення (404)
 curl -X 'DELETE' \
   'http://localhost:8080/api/links/lab6' \
   -H 'accept: */*'
 
-14. GET /health: стан сервера і бази (200)
+15. GET /health: стан сервера і бази (200)
 curl -X 'GET' \
   'http://localhost:8080/health' \
   -H 'accept: */*'
 
 Код 500: команда 4 при зупиненій базі даних (docker compose stop db).
-Код 503: команда 14 при зупиненій базі даних.
+Код 503: команда 15 при зупиненій базі даних.
