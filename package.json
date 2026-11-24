@@ -1,0 +1,26 @@
+{
+  "name": "web-lab-6",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mo1cy/web-lab-6.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/mo1cy/web-lab-6/issues"
+  },
+  "homepage": "https://github.com/mo1cy/web-lab-6#readme",
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "pg-promise": "^12.8.0"
+  }
+}
