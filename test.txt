@@ -1,0 +1,102 @@
+Команди curl, згенеровані Swagger UI (http://localhost:8080/docs)
+Запуск сервісу: docker compose up --build -d
+Команди написані для bash (Git Bash).
+
+1. POST /api/links: створення з власним alias (201)
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://example.com/lab6",
+  "alias": "lab6"
+}'
+
+2. POST /api/links: той самий alias вдруге (409)
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://example.com/lab6",
+  "alias": "lab6"
+}'
+
+3. POST /api/links: адреса не http/https (400)
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "javascript:alert(1)"
+}'
+
+4. GET /api/links: перелік усіх посилань (200)
+curl -X 'GET' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: application/json'
+
+5. GET /api/links/{code}: інформація про посилання (200)
+curl -X 'GET' \
+  'http://localhost:8080/api/links/lab6' \
+  -H 'accept: application/json'
+
+6. GET /api/links/{code}: коду не існує (404)
+curl -X 'GET' \
+  'http://localhost:8080/api/links/nonexistent' \
+  -H 'accept: application/json'
+
+7. PATCH /api/links/{code}: зміна адреси (200)
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/lab6' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://example.net/new"
+}'
+
+8. PATCH /api/links/{code}: некоректна адреса (400)
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/lab6' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "ftp://x"
+}'
+
+9. PATCH /api/links/{code}: коду не існує (404)
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/nonexistent' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://example.net"
+}'
+
+10. GET /{code}: перехід за коротким посиланням (302 і Location)
+Swagger UI слідує за редіректом у браузері, тому код 302 видно лише в curl з прапорцем -i
+curl -i -X 'GET' \
+  'http://localhost:8080/lab6' \
+  -H 'accept: */*'
+
+11. GET /{code}: коду не існує (404)
+curl -X 'GET' \
+  'http://localhost:8080/nonexistent' \
+  -H 'accept: */*'
+
+12. DELETE /api/links/{code}: видалення (204)
+curl -X 'DELETE' \
+  'http://localhost:8080/api/links/lab6' \
+  -H 'accept: */*'
+
+13. DELETE /api/links/{code}: повторне видалення (404)
+curl -X 'DELETE' \
+  'http://localhost:8080/api/links/lab6' \
+  -H 'accept: */*'
+
+14. GET /health: стан сервера і бази (200)
+curl -X 'GET' \
+  'http://localhost:8080/health' \
+  -H 'accept: application/json'
+
+Коди 500 і 503: ті самі команди при зупиненій базі даних (docker compose stop db).
