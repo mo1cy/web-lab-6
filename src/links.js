@@ -25,13 +25,22 @@ function insertLink(code, url) {
   );
 }
 
-export const linksRouter = Router();
-
-linksRouter.post('/', async (req, res) => {
+function getJsonBody(req) {
   const body = req.body;
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new HttpError(400, 'INVALID_BODY', 'Очікується JSON-об\'єкт з Content-Type: application/json');
   }
+  return body;
+}
+
+function notFound() {
+  return new HttpError(404, 'NOT_FOUND', 'Посилання не знайдено');
+}
+
+export const linksRouter = Router();
+
+linksRouter.post('/', async (req, res) => {
+  const body = getJsonBody(req);
   const url = parseUrl(body.url);
 
   let row;
@@ -62,4 +71,31 @@ linksRouter.post('/', async (req, res) => {
 linksRouter.get('/', async (req, res) => {
   const rows = await db.any(`SELECT ${COLUMNS} FROM links ORDER BY created_at DESC, id DESC`);
   res.json(rows.map((row) => toLink(row, req)));
+});
+
+linksRouter.get('/:code', async (req, res) => {
+  const row = await db.oneOrNone(`SELECT ${COLUMNS} FROM links WHERE code = $1`, [req.params.code]);
+  if (!row) throw notFound();
+  res.json(toLink(row, req));
+});
+
+linksRouter.patch('/:code', async (req, res) => {
+  const body = getJsonBody(req);
+  const url = parseUrl(body.url);
+  const row = await db.oneOrNone(
+    `UPDATE links SET original_url = $1 WHERE code = $2 RETURNING ${COLUMNS}`,
+    [url, req.params.code],
+  );
+  if (!row) throw notFound();
+  res.json(toLink(row, req));
+});
+
+linksRouter.delete('/:code', async (req, res) => {
+  const deleted = await db.result(
+    'DELETE FROM links WHERE code = $1',
+    [req.params.code],
+    (result) => result.rowCount,
+  );
+  if (deleted === 0) throw notFound();
+  res.status(204).end();
 });

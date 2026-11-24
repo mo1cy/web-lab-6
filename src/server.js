@@ -24,6 +24,15 @@ app.get('/health', async (req, res) => {
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(spec));
 app.use('/api/links', linksRouter);
 
+app.get('/:code', async (req, res) => {
+  const row = await db.oneOrNone(
+    'UPDATE links SET clicks = clicks + 1 WHERE code = $1 RETURNING original_url',
+    [req.params.code],
+  );
+  if (!row) throw new HttpError(404, 'NOT_FOUND', 'Посилання не знайдено');
+  res.redirect(302, row.original_url);
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'NOT_FOUND', message: 'Ресурс не знайдено' });
 });
